@@ -3,6 +3,12 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (isProduction && !process.env.MONGODB_URI) {
+  throw new Error('MONGODB_URI is required when running in production environment.');
+}
+
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/notes_db';
 
 export const connectDB = async (): Promise<void> => {
@@ -14,3 +20,4 @@ export const connectDB = async (): Promise<void> => {
     process.exit(1);
   }
 };
+

@@ -1,4 +1,5 @@
 import { Schema, model, Document } from 'mongoose';
+import bcrypt from 'bcryptjs';
 
 export interface IUser extends Document {
   name: string;
@@ -18,7 +19,6 @@ const userSchema = new Schema<IUser>(
     email: {
       type: String,
       required: [true, 'Email is required'],
-      unique: true,
       lowercase: true,
       trim: true,
       match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email address'],
@@ -27,6 +27,7 @@ const userSchema = new Schema<IUser>(
       type: String,
       required: [true, 'Password is required'],
       minlength: [6, 'Password must be at least 6 characters long'],
+      select: false,
     },
   },
   {
@@ -34,4 +35,32 @@ const userSchema = new Schema<IUser>(
   }
 );
 
+userSchema.index({ email: 1 }, { unique: true });
+
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) {
+    return next();
+  }
+
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error: any) {
+    next(error);
+  }
+});
+
+const handleDuplicateKeyError = (error: any, doc: any, next: (err?: Error) => void) => {
+  if (error && (error.code === 11000 || error.name === 'MongoServerError')) {
+    next(new Error('Email address already exists'));
+  } else {
+    next(error);
+  }
+};
+
+userSchema.post('save', handleDuplicateKeyError);
+userSchema.post('findOneAndUpdate', handleDuplicateKeyError);
+
 export const User = model<IUser>('User', userSchema);
+
