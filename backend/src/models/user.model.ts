@@ -52,7 +52,7 @@ userSchema.pre('save', async function (next) {
 });
 
 const handleDuplicateKeyError = (error: any, doc: any, next: (err?: Error) => void) => {
-  if (error && (error.code === 11000 || error.name === 'MongoServerError')) {
+  if (error && (error.code === 11000)) {
     next(new Error('Email address already exists'));
   } else {
     next(error);
