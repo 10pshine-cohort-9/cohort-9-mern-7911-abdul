@@ -46,16 +46,40 @@ userSchema.pre('save', async function (next) {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
     next();
-  } catch (error: any) {
-    next(error);
+  } catch (error: unknown) {
+    next(error as any);
   }
 });
 
-const handleDuplicateKeyError = (error: any, doc: any, next: (err?: Error) => void) => {
-  if (error && (error.code === 11000)) {
+userSchema.pre('findOneAndUpdate', async function (next) {
+  const update = this.getUpdate() as any;
+  if (!update) {
+    return next();
+  }
+
+  try {
+    if (update.password && typeof update.password === 'string') {
+      const salt = await bcrypt.genSalt(10);
+      update.password = await bcrypt.hash(update.password, salt);
+    } else if (update.$set && update.$set.password && typeof update.$set.password === 'string') {
+      const salt = await bcrypt.genSalt(10);
+      update.$set.password = await bcrypt.hash(update.$set.password, salt);
+    }
+    next();
+  } catch (error: unknown) {
+    next(error as any);
+  }
+});
+
+const handleDuplicateKeyError = (
+  error: unknown,
+  doc: unknown,
+  next: (err?: any) => void
+): void => {
+  if (error && typeof error === 'object' && 'code' in error && (error as { code: unknown }).code === 11000) {
     next(new Error('Email address already exists'));
   } else {
-    next(error);
+    next(error as any);
   }
 };
 

@@ -17,8 +17,15 @@ const validateEnv = (): void => {
   const isProduction = process.env.NODE_ENV === 'production';
   const jwtSecret = process.env.JWT_SECRET;
 
-  if (isProduction && (!jwtSecret || jwtSecret === 'REPLACE_WITH_A_RANDOM_SECRET' || jwtSecret === 'supersecretjwtkey_change_in_production')) {
-    throw new Error('JWT_SECRET must be set to a secure, unique secret in production environment.');
+  if (isProduction) {
+    if (!jwtSecret || jwtSecret === 'REPLACE_WITH_A_RANDOM_SECRET' || jwtSecret === 'supersecretjwtkey_change_in_production') {
+      throw new Error('JWT_SECRET must be set to a secure, unique secret in production environment.');
+    }
+
+    const byteLength = Buffer.byteLength(jwtSecret, 'utf-8');
+    if (byteLength < 32) {
+      throw new Error('JWT_SECRET must be at least 32 bytes long (using UTF-8 encoding) in production environment.');
+    }
   }
 };
 
@@ -28,8 +35,13 @@ const startServer = async () => {
   validateEnv();
   await connectDB();
 
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+  });
+
+  server.once('error', (error) => {
+    console.error('Failed to start server:', error);
+    process.exit(1);
   });
 };
 
