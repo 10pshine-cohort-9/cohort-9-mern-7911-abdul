@@ -31,7 +31,7 @@ const validateEnv = (): void => {
 
 const PORT = getPort();
 
-const startServer = async () => {
+const startServer = async (): Promise<void> => {
   validateEnv();
   await connectDB();
 

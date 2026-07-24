@@ -58,12 +58,22 @@ userSchema.pre('findOneAndUpdate', async function (next) {
   }
 
   try {
-    if (update.password && typeof update.password === 'string') {
-      const salt = await bcrypt.genSalt(10);
-      update.password = await bcrypt.hash(update.password, salt);
-    } else if (update.$set && update.$set.password && typeof update.$set.password === 'string') {
-      const salt = await bcrypt.genSalt(10);
-      update.$set.password = await bcrypt.hash(update.$set.password, salt);
+    if (update.password !== undefined) {
+      if (typeof update.password === 'string') {
+        if (update.password.length < 6) {
+          return next(new Error('Password must be at least 6 characters long'));
+        }
+        const salt = await bcrypt.genSalt(10);
+        update.password = await bcrypt.hash(update.password, salt);
+      }
+    } else if (update.$set && update.$set.password !== undefined) {
+      if (typeof update.$set.password === 'string') {
+        if (update.$set.password.length < 6) {
+          return next(new Error('Password must be at least 6 characters long'));
+        }
+        const salt = await bcrypt.genSalt(10);
+        update.$set.password = await bcrypt.hash(update.$set.password, salt);
+      }
     }
     next();
   } catch (error: unknown) {
