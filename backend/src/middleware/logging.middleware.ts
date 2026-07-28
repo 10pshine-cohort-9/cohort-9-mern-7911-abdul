@@ -6,14 +6,14 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
 
   res.on('finish', () => {
     const duration = Date.now() - start;
-    const message = `${req.method} ${req.originalUrl} ${res.statusCode} - ${duration}ms`;
+    const message = `${req.method} ${req.path} ${res.statusCode} - ${duration}ms`;
 
     if (res.statusCode >= 500) {
-      logger.error({ method: req.method, url: req.originalUrl, status: res.statusCode, duration }, message);
+      logger.error({ method: req.method, url: req.path, status: res.statusCode, duration }, message);
     } else if (res.statusCode >= 400) {
-      logger.warn({ method: req.method, url: req.originalUrl, status: res.statusCode, duration }, message);
+      logger.warn({ method: req.method, url: req.path, status: res.statusCode, duration }, message);
     } else {
-      logger.info({ method: req.method, url: req.originalUrl, status: res.statusCode, duration }, message);
+      logger.info({ method: req.method, url: req.path, status: res.statusCode, duration }, message);
     }
   });
 

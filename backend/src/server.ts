@@ -15,11 +15,14 @@ const getPort = (): number => {
 };
 
 const validateEnv = (): void => {
-  const isProduction = process.env.NODE_ENV === 'production';
   const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    throw new Error('JWT_SECRET must be set during startup.');
+  }
 
+  const isProduction = process.env.NODE_ENV === 'production';
   if (isProduction) {
-    if (!jwtSecret || jwtSecret === 'REPLACE_WITH_A_RANDOM_SECRET' || jwtSecret === 'supersecretjwtkey_change_in_production') {
+    if (jwtSecret === 'REPLACE_WITH_A_RANDOM_SECRET' || jwtSecret === 'supersecretjwtkey_change_in_production') {
       throw new Error('JWT_SECRET must be set to a secure, unique secret in production environment.');
     }
 
@@ -33,21 +36,23 @@ const validateEnv = (): void => {
 const PORT = getPort();
 
 const startServer = async (): Promise<void> => {
-  validateEnv();
-  await connectDB();
+  try {
+    validateEnv();
+    await connectDB();
 
-  const server = app.listen(PORT, () => {
-    logger.info(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
-  });
+    const server = app.listen(PORT, () => {
+      logger.info(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+    });
 
-  server.once('error', (error) => {
+    server.once('error', (error) => {
+      logger.error({ err: error }, 'Failed to start server:');
+      process.exit(1);
+    });
+  } catch (error) {
     logger.error({ err: error }, 'Failed to start server:');
     process.exit(1);
-  });
+  }
 };
 
-startServer().catch((error) => {
-  logger.error({ err: error }, 'Failed to start server:');
-  process.exit(1);
-});
+startServer();
 

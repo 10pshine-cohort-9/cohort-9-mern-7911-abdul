@@ -2,30 +2,39 @@ import { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger';
 
 export const errorHandler = (
-  err: any,
+  err: unknown,
   req: Request,
   res: Response,
   next: NextFunction
 ): void => {
-  const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+  // Normalize caught error into a genuine Error instance
+  const error = err instanceof Error ? err : new Error(typeof err === 'string' ? err : 'Internal Server Error');
 
-  // Logging error using centralized pino logger
+  // Preserve res.statusCode only if it is a client/server error status (>= 400); otherwise assign 500
+  const statusCode = res.statusCode >= 400 ? res.statusCode : 500;
+
+  // Logging error using centralized pino logger, using redacted req.path
   logger.error(
     {
       err: {
-        message: err.message,
-        stack: err.stack,
+        message: error.message,
+        stack: error.stack,
       },
       method: req.method,
-      url: req.originalUrl,
+      url: req.path,
       statusCode,
     },
-    `Error handled: ${err.message || 'Internal Server Error'}`
+    `Error handled: ${error.message}`
   );
+
+  const isProduction = process.env.NODE_ENV === 'production';
+  const responseMessage = isProduction
+    ? (statusCode >= 500 ? 'Internal Server Error' : error.message)
+    : error.message;
 
   res.status(statusCode).json({
     success: false,
-    message: err.message || 'Internal Server Error',
-    stack: process.env.NODE_ENV === 'production' ? undefined : err.stack,
+    message: responseMessage,
+    stack: isProduction ? undefined : error.stack,
   });
 };

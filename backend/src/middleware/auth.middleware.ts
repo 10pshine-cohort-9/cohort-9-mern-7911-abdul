@@ -2,6 +2,11 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { User, IUser } from '../models/user.model';
 
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is required during application startup.');
+}
+
 export interface AuthRequest extends Request {
   user?: IUser;
 }
@@ -13,14 +18,12 @@ export const protect = async (
 ): Promise<void> => {
   let token: string | undefined;
 
+  // Extract bearer token from Authorization header
   if (
     req.headers.authorization &&
     req.headers.authorization.startsWith('Bearer')
   ) {
     token = req.headers.authorization.split(' ')[1];
-  }
-  else if (req.cookies && req.cookies.token) {
-    token = req.cookies.token;
   }
 
   if (!token) {
@@ -29,14 +32,17 @@ export const protect = async (
   }
 
   try {
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || 'supersecretjwtkey_change_in_production'
-    ) as { id: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: string; tokenVersion: number };
 
     const user = await User.findById(decoded.id).select('-password');
     if (!user) {
       res.status(401).json({ success: false, message: 'Not authorized, user not found' });
+      return;
+    }
+
+    // Verify token version matches user's current token version in database
+    if (user.tokenVersion !== decoded.tokenVersion) {
+      res.status(401).json({ success: false, message: 'Not authorized, token has been revoked' });
       return;
     }
 
