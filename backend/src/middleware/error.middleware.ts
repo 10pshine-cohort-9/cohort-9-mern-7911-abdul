@@ -32,6 +32,10 @@ export const errorHandler = (
     ? (statusCode >= 500 ? 'Internal Server Error' : error.message)
     : error.message;
 
+  if (res.headersSent) {
+    return next(error);
+  }
+
   res.status(statusCode).json({
     success: false,
     message: responseMessage,
