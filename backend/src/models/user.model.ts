@@ -7,6 +7,7 @@ export interface IUser extends Document {
   password: string;
   createdAt: Date;
   updatedAt: Date;
+  comparePassword(password: string): Promise<boolean>;
 }
 
 const userSchema = new Schema<IUser>(
@@ -95,6 +96,10 @@ const handleDuplicateKeyError = (
 
 userSchema.post('save', handleDuplicateKeyError);
 userSchema.post('findOneAndUpdate', handleDuplicateKeyError);
+
+userSchema.methods.comparePassword = async function (password: string): Promise<boolean> {
+  return bcrypt.compare(password, this.password);
+};
 
 export const User = model<IUser>('User', userSchema);
 

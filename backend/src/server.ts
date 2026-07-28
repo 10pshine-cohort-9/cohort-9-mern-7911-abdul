@@ -1,5 +1,6 @@
 import app from './app';
 import { connectDB } from './config/database';
+import { logger } from './utils/logger';
 
 const getPort = (): number => {
   const rawPort = process.env.PORT;
@@ -36,17 +37,17 @@ const startServer = async (): Promise<void> => {
   await connectDB();
 
   const server = app.listen(PORT, () => {
-    console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+    logger.info(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
   });
 
   server.once('error', (error) => {
-    console.error('Failed to start server:', error);
+    logger.error({ err: error }, 'Failed to start server:');
     process.exit(1);
   });
 };
 
 startServer().catch((error) => {
-  console.error('Failed to start server:', error);
+  logger.error({ err: error }, 'Failed to start server:');
   process.exit(1);
 });
 
