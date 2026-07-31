@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt, { SignOptions } from 'jsonwebtoken';
-import { User } from '../models/user.model';
+import { User, IUser } from '../models/user.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -55,7 +55,7 @@ export class AuthController {
         throw new Error('Email address already exists');
       }
 
-      let user;
+      let user: IUser;
       try {
         user = await User.create({
           name,

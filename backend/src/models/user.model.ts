@@ -1,4 +1,4 @@
-import { Schema, model, Document } from 'mongoose';
+import { Schema, model, Document, CallbackError, HydratedDocument } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 export interface IUser extends Document {
@@ -80,9 +80,15 @@ userSchema.pre('findOneAndUpdate', async function (next) {
   }
 });
 
-const handleDuplicate = (error: any, doc: any, next: any) => {
-  if (error?.code === 11000) {
-    next(new Error('Email address already exists'));
+const handleDuplicate = (
+  error: CallbackError & { code?: number },
+  doc: HydratedDocument<IUser>,
+  next: (err?: CallbackError) => void
+): void => {
+  if (error && error.code === 11000) {
+    const err = new Error('Email address already exists') as any;
+    err.code = 11000;
+    next(err);
   } else {
     next(error);
   }
