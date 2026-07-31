@@ -7,13 +7,9 @@ export const errorHandler = (
   res: Response,
   next: NextFunction
 ): void => {
-  // Normalize caught error into a genuine Error instance
   const error = err instanceof Error ? err : new Error(typeof err === 'string' ? err : 'Internal Server Error');
-
-  // Preserve res.statusCode only if it is a client/server error status (>= 400); otherwise assign 500
   const statusCode = res.statusCode >= 400 ? res.statusCode : 500;
 
-  // Logging error using centralized pino logger, using redacted req.path
   logger.error(
     {
       err: {

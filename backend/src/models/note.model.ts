@@ -41,7 +41,6 @@ const noteSchema = new Schema<INote>(
   }
 );
 
-// Added index on userId for fast retrieval of user notes
 noteSchema.index({ userId: 1 });
 
 export const Note = model<INote>('Note', noteSchema);

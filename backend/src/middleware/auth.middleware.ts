@@ -18,7 +18,6 @@ export const protect = async (
 ): Promise<void> => {
   let token: string | undefined;
 
-  // Extract bearer token from Authorization header
   if (
     req.headers.authorization &&
     req.headers.authorization.startsWith('Bearer')
@@ -40,7 +39,6 @@ export const protect = async (
       return;
     }
 
-    // Verify token version matches user's current token version in database
     if (user.tokenVersion !== decoded.tokenVersion) {
       res.status(401).json({ success: false, message: 'Not authorized, token has been revoked' });
       return;

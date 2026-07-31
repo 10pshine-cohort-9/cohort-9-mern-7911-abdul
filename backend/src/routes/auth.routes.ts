@@ -1,18 +1,15 @@
 import { Router } from 'express';
-import { signUp, signIn, logout } from '../controllers/auth.controller';
+import { AuthController } from '../controllers/auth.controller';
 import { protect, AuthRequest } from '../middleware/auth.middleware';
 
 const router = Router();
 
-// Public auth routes
-router.post('/signup', signUp);
-router.post('/signin', signIn);
-router.post('/login', signIn); // Alias for signin
+router.post('/signup', AuthController.signUp);
+router.post('/signin', AuthController.signIn);
+router.post('/login', AuthController.signIn);
 
-// Protected auth routes
-router.post('/logout', protect, logout);
+router.post('/logout', protect, AuthController.logout);
 
-// Protected route to fetch current authenticated user profile
 router.get('/me', protect, (req: AuthRequest, res) => {
   res.status(200).json({
     success: true,

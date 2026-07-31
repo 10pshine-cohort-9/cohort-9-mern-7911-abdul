@@ -59,26 +59,19 @@ userSchema.pre('save', async function (next) {
 
 userSchema.pre('findOneAndUpdate', async function (next) {
   const update = this.getUpdate() as any;
-  if (!update) {
-    return next();
-  }
+  if (!update) return next();
 
   try {
-    if (update.password !== undefined) {
-      if (typeof update.password === 'string') {
-        if (update.password.length < 6) {
-          return next(new Error('Password must be at least 6 characters long'));
-        }
-        const salt = await bcrypt.genSalt(10);
-        update.password = await bcrypt.hash(update.password, salt);
+    let passwordVal = update.password ?? update.$set?.password;
+    if (typeof passwordVal === 'string') {
+      if (passwordVal.length < 6) {
+        return next(new Error('Password must be at least 6 characters long'));
       }
-    } else if (update.$set && update.$set.password !== undefined) {
-      if (typeof update.$set.password === 'string') {
-        if (update.$set.password.length < 6) {
-          return next(new Error('Password must be at least 6 characters long'));
-        }
-        const salt = await bcrypt.genSalt(10);
-        update.$set.password = await bcrypt.hash(update.$set.password, salt);
+      const hashed = await bcrypt.hash(passwordVal, await bcrypt.genSalt(10));
+      if (update.password !== undefined) {
+        update.password = hashed;
+      } else if (update.$set?.password !== undefined) {
+        update.$set.password = hashed;
       }
     }
     next();
@@ -87,24 +80,19 @@ userSchema.pre('findOneAndUpdate', async function (next) {
   }
 });
 
-const handleDuplicateKeyError = (
-  error: unknown,
-  doc: unknown,
-  next: (err?: any) => void
-): void => {
-  if (error && typeof error === 'object' && 'code' in error && (error as { code: unknown }).code === 11000) {
+const handleDuplicate = (error: any, doc: any, next: any) => {
+  if (error?.code === 11000) {
     next(new Error('Email address already exists'));
   } else {
-    next(error as any);
+    next(error);
   }
 };
 
-userSchema.post('save', handleDuplicateKeyError);
-userSchema.post('findOneAndUpdate', handleDuplicateKeyError);
+userSchema.post('save', handleDuplicate);
+userSchema.post('findOneAndUpdate', handleDuplicate);
 
 userSchema.methods.comparePassword = async function (password: string): Promise<boolean> {
   return bcrypt.compare(password, this.password);
 };
 
 export const User = model<IUser>('User', userSchema);
-
