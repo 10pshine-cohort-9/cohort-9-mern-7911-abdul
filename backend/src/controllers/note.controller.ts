@@ -1,10 +1,38 @@
-import { Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
+import mongoose, { FilterQuery } from 'mongoose';
 import { AuthRequest } from '../middleware/auth.middleware';
-import { Note } from '../models/note.model';
+import { Note, INote } from '../models/note.model';
 import { logger } from '../utils/logger';
 
+export interface ICreateNoteBody {
+  title: string;
+  content: string;
+  tags?: string[];
+  isPinned?: boolean;
+}
+
+export interface IUpdateNoteBody {
+  title?: string;
+  content?: string;
+  tags?: string[];
+  isPinned?: boolean;
+}
+
+export interface IGetNotesQuery {
+  search?: string;
+  isPinned?: string;
+}
+
+const escapeRegex = (text: string): string => {
+  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+};
+
 export class NoteController {
-  static async createNote(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  static async createNote(
+    req: AuthRequest & Request<{}, any, ICreateNoteBody>,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const { title, content, tags, isPinned } = req.body;
 
@@ -38,7 +66,11 @@ export class NoteController {
     }
   }
 
-  static async getNotes(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  static async getNotes(
+    req: AuthRequest & Request<{}, any, any, IGetNotesQuery>,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       if (!req.user) {
         res.status(401);
@@ -46,12 +78,13 @@ export class NoteController {
       }
 
       const { search, isPinned } = req.query;
-      const query: any = { userId: req.user._id };
+      const query: FilterQuery<INote> = { userId: req.user._id as mongoose.Types.ObjectId };
 
-      if (search) {
+      if (typeof search === 'string' && search.trim().length > 0) {
+        const escapedSearch = escapeRegex(search.trim().substring(0, 100));
         query.$or = [
-          { title: { $regex: search, $options: 'i' } },
-          { content: { $regex: search, $options: 'i' } },
+          { title: { $regex: escapedSearch, $options: 'i' } },
+          { content: { $regex: escapedSearch, $options: 'i' } },
         ];
       }
 
@@ -81,6 +114,11 @@ export class NoteController {
         throw new Error('Unauthorized');
       }
 
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        res.status(400);
+        throw new Error('Invalid note ID format');
+      }
+
       const note = await Note.findOne({ _id: req.params.id, userId: req.user._id });
 
       if (!note) {
@@ -101,11 +139,20 @@ export class NoteController {
     }
   }
 
-  static async updateNote(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  static async updateNote(
+    req: AuthRequest & Request<{ id: string }, any, IUpdateNoteBody>,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       if (!req.user) {
         res.status(401);
         throw new Error('Unauthorized');
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        res.status(400);
+        throw new Error('Invalid note ID format');
       }
 
       const { title, content, tags, isPinned } = req.body;
@@ -152,6 +199,11 @@ export class NoteController {
       if (!req.user) {
         res.status(401);
         throw new Error('Unauthorized');
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        res.status(400);
+        throw new Error('Invalid note ID format');
       }
 
       const note = await Note.findOne({ _id: req.params.id, userId: req.user._id });

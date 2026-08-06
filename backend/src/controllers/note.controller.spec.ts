@@ -1,24 +1,25 @@
 import { expect } from 'chai';
 import request from 'supertest';
+import mongoose, { FilterQuery } from 'mongoose';
 import app from '../app';
-import { Note } from '../models/note.model';
+import { Note, INote } from '../models/note.model';
 import { User } from '../models/user.model';
 import jwt from 'jsonwebtoken';
 
 describe('Note API Endpoints', () => {
   const token = 'Bearer mock-valid-token';
   const mockUser = {
-    _id: 'user-123',
+    _id: '60c72b2f9b1d8b2bad000001',
     email: 'test@example.com',
     name: 'Test User',
     tokenVersion: 0,
   };
 
-  let originalCreate: any;
-  let originalFind: any;
-  let originalFindOne: any;
-  let originalFindById: any;
-  let originalVerify: any;
+  let originalCreate: typeof Note.create;
+  let originalFind: typeof Note.find;
+  let originalFindOne: typeof Note.findOne;
+  let originalFindById: typeof User.findById;
+  let originalVerify: typeof jwt.verify;
 
   before(() => {
     originalCreate = Note.create;
@@ -37,10 +38,10 @@ describe('Note API Endpoints', () => {
   });
 
   const stubAuthSuccess = () => {
-    jwt.verify = (() => ({ id: 'user-123', tokenVersion: 0 })) as any;
+    jwt.verify = (() => ({ id: '60c72b2f9b1d8b2bad000001', tokenVersion: 0 })) as unknown as typeof jwt.verify;
     User.findById = (() => ({
       select: () => Promise.resolve(mockUser),
-    })) as any;
+    })) as unknown as typeof User.findById;
   };
 
   describe('POST /api/notes', () => {
@@ -57,11 +58,11 @@ describe('Note API Endpoints', () => {
       Note.create = (async (data: any) => {
         return {
           ...data,
-          _id: 'note-123',
+          _id: '60c72b2f9b1d8b2bad000123',
           createdAt: new Date(),
           updatedAt: new Date(),
         };
-      }) as any;
+      }) as unknown as typeof Note.create;
 
       const response = await request(app)
         .post('/api/notes')
@@ -72,7 +73,7 @@ describe('Note API Endpoints', () => {
       expect(response.body.success).to.be.true;
       expect(response.body.message).to.equal('Note created successfully');
       expect(response.body.note.title).to.equal('Work Tasks');
-      expect(response.body.note.userId).to.equal('user-123');
+      expect(response.body.note.userId).to.equal('60c72b2f9b1d8b2bad000001');
     });
 
     it('should return 400 if title or content is missing', async () => {
@@ -93,13 +94,13 @@ describe('Note API Endpoints', () => {
       stubAuthSuccess();
 
       const mockNotes = [
-        { _id: '1', title: 'Note A', content: 'Content A', isPinned: true, userId: 'user-123' },
-        { _id: '2', title: 'Note B', content: 'Content B', isPinned: false, userId: 'user-123' },
+        { _id: '60c72b2f9b1d8b2bad000111', title: 'Note A', content: 'Content A', isPinned: true, userId: '60c72b2f9b1d8b2bad000001' },
+        { _id: '60c72b2f9b1d8b2bad000222', title: 'Note B', content: 'Content B', isPinned: false, userId: '60c72b2f9b1d8b2bad000001' },
       ];
 
       Note.find = (() => ({
         sort: () => Promise.resolve(mockNotes),
-      })) as any;
+      })) as unknown as typeof Note.find;
 
       const response = await request(app)
         .get('/api/notes')
@@ -114,22 +115,22 @@ describe('Note API Endpoints', () => {
     it('should query notes with search keyword if provided', async () => {
       stubAuthSuccess();
 
-      let capturedQuery: any = null;
-      Note.find = ((query: any) => {
+      let capturedQuery: FilterQuery<INote> | null = null;
+      Note.find = ((query: FilterQuery<INote>) => {
         capturedQuery = query;
         return {
           sort: () => Promise.resolve([]),
         };
-      }) as any;
+      }) as unknown as typeof Note.find;
 
       await request(app)
         .get('/api/notes?search=important')
         .set('Authorization', token);
 
       expect(capturedQuery).to.not.be.null;
-      expect(capturedQuery.userId).to.equal('user-123');
-      expect(capturedQuery.$or).to.exist;
-      expect(capturedQuery.$or[0].title.$regex).to.equal('important');
+      expect(capturedQuery!.userId.toString()).to.equal('60c72b2f9b1d8b2bad000001');
+      expect(capturedQuery!.$or).to.exist;
+      expect(capturedQuery!.$or![0].title.$regex).to.equal('important');
     });
   });
 
@@ -137,16 +138,16 @@ describe('Note API Endpoints', () => {
     it('should return specific note if found and owned by user', async () => {
       stubAuthSuccess();
 
-      const mockNote = { _id: 'note-123', title: 'Specific Note', content: 'Some details', userId: 'user-123' };
-      Note.findOne = (async (query: any) => {
-        if (query._id === 'note-123' && query.userId === 'user-123') {
+      const mockNote = { _id: '60c72b2f9b1d8b2bad000123', title: 'Specific Note', content: 'Some details', userId: '60c72b2f9b1d8b2bad000001' };
+      Note.findOne = (async (query: FilterQuery<INote>) => {
+        if (query._id?.toString() === '60c72b2f9b1d8b2bad000123' && query.userId?.toString() === '60c72b2f9b1d8b2bad000001') {
           return mockNote;
         }
         return null;
-      }) as any;
+      }) as unknown as typeof Note.findOne;
 
       const response = await request(app)
-        .get('/api/notes/note-123')
+        .get('/api/notes/60c72b2f9b1d8b2bad000123')
         .set('Authorization', token);
 
       expect(response.status).to.equal(200);
@@ -154,13 +155,24 @@ describe('Note API Endpoints', () => {
       expect(response.body.note.title).to.equal('Specific Note');
     });
 
-    it('should return 404 if note not found', async () => {
+    it('should return 400 if note ID format is invalid', async () => {
       stubAuthSuccess();
 
-      Note.findOne = (async () => null) as any;
+      const response = await request(app)
+        .get('/api/notes/invalid-id-format')
+        .set('Authorization', token);
+
+      expect(response.status).to.equal(400);
+      expect(response.body.message).to.equal('Invalid note ID format');
+    });
+
+    it('should return 404 if note not found using a valid absent ID', async () => {
+      stubAuthSuccess();
+
+      Note.findOne = (async () => null) as unknown as typeof Note.findOne;
 
       const response = await request(app)
-        .get('/api/notes/does-not-exist')
+        .get('/api/notes/60c72b2f9b1d8b2bad000999')
         .set('Authorization', token);
 
       expect(response.status).to.equal(404);
@@ -174,22 +186,22 @@ describe('Note API Endpoints', () => {
 
       let saveCalled = false;
       const mockNote = {
-        _id: 'note-123',
+        _id: '60c72b2f9b1d8b2bad000123',
         title: 'Old Title',
         content: 'Old Content',
         tags: [] as string[],
         isPinned: false,
-        userId: 'user-123',
+        userId: '60c72b2f9b1d8b2bad000001',
         save: async function () {
           saveCalled = true;
           return this;
         },
       };
 
-      Note.findOne = (async () => mockNote) as any;
+      Note.findOne = (async () => mockNote) as unknown as typeof Note.findOne;
 
       const response = await request(app)
-        .put('/api/notes/note-123')
+        .put('/api/notes/60c72b2f9b1d8b2bad000123')
         .set('Authorization', token)
         .send({ title: 'Updated Title', isPinned: true });
 
@@ -199,6 +211,18 @@ describe('Note API Endpoints', () => {
       expect(mockNote.isPinned).to.be.true;
       expect(saveCalled).to.be.true;
     });
+
+    it('should return 400 if note ID format is invalid on update', async () => {
+      stubAuthSuccess();
+
+      const response = await request(app)
+        .put('/api/notes/invalid-id-format')
+        .set('Authorization', token)
+        .send({ title: 'New Title' });
+
+      expect(response.status).to.equal(400);
+      expect(response.body.message).to.equal('Invalid note ID format');
+    });
   });
 
   describe('DELETE /api/notes/:id', () => {
@@ -207,23 +231,34 @@ describe('Note API Endpoints', () => {
 
       let deleteOneCalled = false;
       const mockNote = {
-        _id: 'note-123',
-        userId: 'user-123',
+        _id: '60c72b2f9b1d8b2bad000123',
+        userId: '60c72b2f9b1d8b2bad000001',
         deleteOne: async () => {
           deleteOneCalled = true;
           return { deletedCount: 1 };
         },
       };
 
-      Note.findOne = (async () => mockNote) as any;
+      Note.findOne = (async () => mockNote) as unknown as typeof Note.findOne;
 
       const response = await request(app)
-        .delete('/api/notes/note-123')
+        .delete('/api/notes/60c72b2f9b1d8b2bad000123')
         .set('Authorization', token);
 
       expect(response.status).to.equal(200);
       expect(response.body.message).to.equal('Note deleted successfully');
       expect(deleteOneCalled).to.be.true;
+    });
+
+    it('should return 400 if note ID format is invalid on delete', async () => {
+      stubAuthSuccess();
+
+      const response = await request(app)
+        .delete('/api/notes/invalid-id-format')
+        .set('Authorization', token);
+
+      expect(response.status).to.equal(400);
+      expect(response.body.message).to.equal('Invalid note ID format');
     });
   });
 });
