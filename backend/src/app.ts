@@ -1,7 +1,9 @@
+import './config/env';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import authRouter from './routes/auth.routes';
+import noteRouter from './routes/note.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { requestLogger } from './middleware/logging.middleware';
 
@@ -15,6 +17,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/auth', authRouter);
+app.use('/api/notes', noteRouter);
 
 app.use(errorHandler);
 

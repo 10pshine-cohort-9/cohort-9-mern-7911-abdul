@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { User, IUser } from '../models/user.model';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { logger } from '../utils/logger';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -64,6 +65,7 @@ export class AuthController {
         });
       } catch (dbError: any) {
         if (dbError && (dbError.code === 11000 || dbError.message?.includes('duplicate key'))) {
+          logger.warn('Signup failed: Email address already exists');
           res.status(400);
           throw new Error('Email address already exists');
         }
@@ -71,6 +73,8 @@ export class AuthController {
       }
 
       const token = generateToken(user._id.toString(), user.tokenVersion);
+
+      logger.info({ userId: user._id }, 'User registered successfully');
 
       res.status(201).json({
         success: true,
@@ -84,6 +88,11 @@ export class AuthController {
         },
       });
     } catch (error) {
+      if (res.statusCode >= 400 && res.statusCode < 500) {
+        logger.warn({ err: (error as Error).message }, 'User signup validation or client failure');
+      } else {
+        logger.error({ err: error }, 'Unexpected error occurred during user signup');
+      }
       next(error);
     }
   }
@@ -103,17 +112,21 @@ export class AuthController {
 
       const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
       if (!user) {
+        logger.warn('Signin failed: Invalid email or user not found');
         res.status(401);
         throw new Error('Invalid email or password');
       }
 
       const isMatch = await user.comparePassword(password);
       if (!isMatch) {
+        logger.warn({ userId: user._id }, 'Signin failed: Incorrect password');
         res.status(401);
         throw new Error('Invalid email or password');
       }
 
       const token = generateToken(user._id.toString(), user.tokenVersion);
+
+      logger.info({ userId: user._id }, 'User signed in successfully');
 
       res.status(200).json({
         success: true,
@@ -127,6 +140,11 @@ export class AuthController {
         },
       });
     } catch (error) {
+      if (res.statusCode === 400 || res.statusCode === 401) {
+        logger.warn({ err: (error as Error).message }, 'User signin client failure');
+      } else {
+        logger.error({ err: error }, 'Unexpected error occurred during user signin');
+      }
       next(error);
     }
   }
@@ -140,6 +158,7 @@ export class AuthController {
       if (req.user) {
         req.user.tokenVersion += 1;
         await req.user.save();
+        logger.info({ userId: req.user._id }, 'User logged out successfully');
       }
 
       res.status(200).json({
@@ -147,6 +166,11 @@ export class AuthController {
         message: 'Logged out successfully',
       });
     } catch (error) {
+      if (res.statusCode >= 400 && res.statusCode < 500) {
+        logger.warn({ err: (error as Error).message, userId: req.user?._id }, 'User logout client failure');
+      } else {
+        logger.error({ err: error, userId: req.user?._id }, 'Unexpected error occurred during user logout');
+      }
       next(error);
     }
   }
