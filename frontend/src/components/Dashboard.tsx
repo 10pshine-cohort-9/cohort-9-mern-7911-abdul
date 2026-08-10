@@ -20,8 +20,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       if (res.success && res.notes) {
         setNotes(res.notes);
       }
-    } catch (error: any) {
-      showToast(error.message || 'Failed to fetch notes', 'error');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch notes';
+      showToast(message, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -36,8 +37,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       await api.logout();
       showToast('Logged out successfully', 'success');
       onLogout();
-    } catch (err: any) {
-      showToast(err.message || 'Failed to logout', 'error');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to logout';
+      showToast(message, 'error');
       onLogout();
     }
   };

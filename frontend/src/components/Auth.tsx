@@ -67,8 +67,9 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
           onAuthSuccess(res.user);
         }
       }
-    } catch (error: any) {
-      showToast(error.message || 'Authentication failed', 'error');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Authentication failed';
+      showToast(message, 'error');
     } finally {
       setIsLoading(false);
     }
