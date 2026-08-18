@@ -100,10 +100,14 @@ describe('NoteEditor Component', () => {
     const saveButton = screen.getByRole('button', { name: /Save Note/i });
     fireEvent.click(saveButton);
 
-    await waitFor(() => {
-      expect(mockOnSave).toHaveBeenCalledWith('Test Title', '<p>Some content</p>', [], true);
-      expect(mockOnClose).toHaveBeenCalled();
-    });
+    try {
+      await waitFor(() => {
+        expect(mockOnSave).toHaveBeenCalledWith('Test Title', '<p>Some content</p>', [], true);
+        expect(mockOnClose).toHaveBeenCalled();
+      });
+    } catch (error) {
+      throw new Error(`Note save submission waitFor assertion failed: ${error instanceof Error ? error.message : error}`);
+    }
   });
 
   test('calls onClose when Cancel button is clicked', () => {

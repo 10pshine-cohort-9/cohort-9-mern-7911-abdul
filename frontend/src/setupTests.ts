@@ -1,13 +1,13 @@
 import '@testing-library/jest-dom';
 
 jest.mock('quill', () => {
-  return jest.fn().mockImplementation((_container, options) => {
+  return jest.fn().mockImplementation((_container: HTMLElement | string, options?: { placeholder?: string }) => {
     const root = {
       innerHTML: '',
     };
     return {
       root,
-      on: jest.fn().mockImplementation((event, _callback) => {
+      on: jest.fn().mockImplementation((event: string, _callback: (...args: any[]) => void) => {
         if (event === 'text-change') {
         }
       }),

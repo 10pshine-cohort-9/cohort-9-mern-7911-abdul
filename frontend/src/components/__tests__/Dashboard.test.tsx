@@ -26,7 +26,11 @@ jest.mock('../Toast', () => {
 });
 
 jest.mock('../NoteEditor', () => ({
-  NoteEditor: ({ isOpen, onClose, onSave }: any) => {
+  NoteEditor: ({ isOpen, onClose, onSave }: {
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (title: string, content: string, tags: string[], isPinned: boolean) => Promise<void>;
+  }) => {
     if (!isOpen) return null;
     return (
       <div data-testid="mock-note-editor">
@@ -86,11 +90,15 @@ describe('Dashboard Component', () => {
       </ToastProvider>
     );
 
-    await waitFor(() => {
-      expect(api.getNotes).toHaveBeenCalled();
-      expect(screen.getByText('First Note')).toBeInTheDocument();
-      expect(screen.getByText('Pinned Note')).toBeInTheDocument();
-    });
+    try {
+      await waitFor(() => {
+        expect(api.getNotes).toHaveBeenCalled();
+        expect(screen.getByText('First Note')).toBeInTheDocument();
+        expect(screen.getByText('Pinned Note')).toBeInTheDocument();
+      });
+    } catch (error) {
+      throw new Error(`Dashboard fetch notes load waitFor assertion failed: ${error instanceof Error ? error.message : error}`);
+    }
   });
 
   test('opens creation editor when clicking New Note button', async () => {
@@ -131,15 +139,19 @@ describe('Dashboard Component', () => {
     const saveBtn = screen.getByRole('button', { name: /Save Note/i });
     fireEvent.click(saveBtn);
 
-    await waitFor(() => {
-      expect(api.createNote).toHaveBeenCalledWith({
-        title: 'New Note Title',
-        content: '<p>New Note Content</p>',
-        tags: ['work'],
-        isPinned: false,
+    try {
+      await waitFor(() => {
+        expect(api.createNote).toHaveBeenCalledWith({
+          title: 'New Note Title',
+          content: '<p>New Note Content</p>',
+          tags: ['work'],
+          isPinned: false,
+        });
+        expect(mockShowToast).toHaveBeenCalledWith('Note created successfully', 'success');
       });
-      expect(mockShowToast).toHaveBeenCalledWith('Note created successfully', 'success');
-    });
+    } catch (error) {
+      throw new Error(`Dashboard create note submit waitFor assertion failed: ${error instanceof Error ? error.message : error}`);
+    }
   });
 
   test('deletes a note after confirmation', async () => {
@@ -158,16 +170,24 @@ describe('Dashboard Component', () => {
       </ToastProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByText('First Note')).toBeInTheDocument();
-    });
+    try {
+      await waitFor(() => {
+        expect(screen.getByText('First Note')).toBeInTheDocument();
+      });
+    } catch (error) {
+      throw new Error(`Dashboard delete initial check waitFor assertion failed: ${error instanceof Error ? error.message : error}`);
+    }
 
     const deleteBtn = screen.getAllByRole('button', { name: /Delete/i })[0];
     fireEvent.click(deleteBtn);
 
-    await waitFor(() => {
-      expect(api.deleteNote).toHaveBeenCalledWith('1');
-      expect(mockShowToast).toHaveBeenCalledWith('Note deleted successfully', 'success');
-    });
+    try {
+      await waitFor(() => {
+        expect(api.deleteNote).toHaveBeenCalledWith('1');
+        expect(mockShowToast).toHaveBeenCalledWith('Note deleted successfully', 'success');
+      });
+    } catch (error) {
+      throw new Error(`Dashboard delete post-click check waitFor assertion failed: ${error instanceof Error ? error.message : error}`);
+    }
   });
 });

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { api, type NoteItem, type UserResponse } from '../utils/api';
 import { useToast } from './Toast';
 import { NoteEditor } from './NoteEditor';
+import DOMPurify from 'dompurify';
 
 interface DashboardProps {
   user: UserResponse;
@@ -88,10 +89,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const handleCreateNote = async (title: string, content: string, tags: string[], isPinned: boolean) => {
     try {
       const res = await api.createNote({ title, content, tags, isPinned });
-      if (res.success) {
-        showToast('Note created successfully', 'success');
-        fetchNotes();
+      if (!res.success) {
+        throw new Error(res.message || 'Failed to create note');
       }
+      showToast('Note created successfully', 'success');
+      fetchNotes();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to create note';
       showToast(message, 'error');
@@ -103,10 +105,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     if (!editingNote) return;
     try {
       const res = await api.updateNote(editingNote._id, { title, content, tags, isPinned });
-      if (res.success) {
-        showToast('Note updated successfully', 'success');
-        fetchNotes();
+      if (!res.success) {
+        throw new Error(res.message || 'Failed to update note');
       }
+      showToast('Note updated successfully', 'success');
+      fetchNotes();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to update note';
       showToast(message, 'error');
@@ -118,10 +121,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     e.stopPropagation();
     try {
       const res = await api.updateNote(note._id, { isPinned: !note.isPinned });
-      if (res.success) {
-        showToast(note.isPinned ? 'Note unpinned' : 'Note pinned', 'success');
-        fetchNotes();
+      if (!res.success) {
+        throw new Error(res.message || 'Failed to update pin state');
       }
+      showToast(note.isPinned ? 'Note unpinned' : 'Note pinned', 'success');
+      fetchNotes();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to update pin state';
       showToast(message, 'error');
@@ -447,7 +451,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   {/* HTML note body */}
                   <div
                     className="note-card-body rich-text-body"
-                    dangerouslySetInnerHTML={{ __html: note.content }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(note.content) }}
                   />
 
                   {/* Footer with edit/delete actions */}

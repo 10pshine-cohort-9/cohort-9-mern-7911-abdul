@@ -109,15 +109,19 @@ describe('Auth Component', () => {
     const submitBtn = screen.getByRole('button', { name: /^Sign In$/i });
     fireEvent.click(submitBtn);
 
-    await waitFor(() => {
-      expect(api.signIn).toHaveBeenCalledWith({ email: 'test@example.com', password: 'password123' });
-      expect(api.setToken).toHaveBeenCalledWith('fake-token');
-      expect(mockOnAuthSuccess).toHaveBeenCalledWith({
-        id: '1',
-        name: 'Test User',
-        email: 'test@example.com',
-        createdAt: '2026-08-18',
+    try {
+      await waitFor(() => {
+        expect(api.signIn).toHaveBeenCalledWith({ email: 'test@example.com', password: 'password123' });
+        expect(api.setToken).toHaveBeenCalledWith('fake-token');
+        expect(mockOnAuthSuccess).toHaveBeenCalledWith({
+          id: '1',
+          name: 'Test User',
+          email: 'test@example.com',
+          createdAt: '2026-08-18',
+        });
       });
-    });
+    } catch (error) {
+      throw new Error(`Auth sign-in submission waitFor assertion failed: ${error instanceof Error ? error.message : error}`);
+    }
   });
 });

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import Quill from 'quill';
 import 'quill/dist/quill.snow.css';
+import DOMPurify from 'dompurify';
 
 interface QuillEditorProps {
   value: string;
@@ -27,7 +28,7 @@ export const QuillEditor: React.FC<QuillEditorProps> = ({ value, onChange, place
       });
 
       if (value) {
-        quillRef.current.root.innerHTML = value;
+        quillRef.current.root.innerHTML = DOMPurify.sanitize(value);
       }
 
       quillRef.current.on('text-change', () => {
@@ -43,7 +44,7 @@ export const QuillEditor: React.FC<QuillEditorProps> = ({ value, onChange, place
       const currentHTML = quillRef.current.root.innerHTML;
       if (value !== currentHTML) {
         const selection = quillRef.current.getSelection();
-        quillRef.current.root.innerHTML = value || '';
+        quillRef.current.root.innerHTML = DOMPurify.sanitize(value || '');
         if (selection) {
           quillRef.current.setSelection(selection);
         }

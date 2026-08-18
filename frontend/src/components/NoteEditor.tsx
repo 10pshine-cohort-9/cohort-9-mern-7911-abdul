@@ -81,7 +81,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ isOpen, onClose, onSave,
   };
 
   return (
-    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && !isSaving && onClose()}>
       <div className="modal-content auth-card" style={{ maxWidth: '640px', width: '90%', padding: '32px' }}>
 
         {/* Header */}
