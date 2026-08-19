@@ -24,7 +24,7 @@ function MainApp() {
         } else {
           api.removeToken();
         }
-      } catch (error) {
+      } catch {
         api.removeToken();
       } finally {
         setIsInitializing(false);

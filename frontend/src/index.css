@@ -506,3 +506,138 @@ a:hover {
     padding: 16px 20px !important;
   }
 }
+
+/* Modal backdrop and modal content container */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(9, 13, 22, 0.6);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: fadeIn var(--transition-fast) ease-out forwards;
+}
+
+.modal-content {
+  animation: slideUp var(--transition-normal) cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background-color: var(--bg-card);
+  box-shadow: var(--shadow-xl);
+}
+
+/* Custom styles for Quill editor */
+.rich-editor-wrapper {
+  margin-top: 6px;
+}
+
+.ql-toolbar.ql-snow {
+  border: 1px solid var(--border) !important;
+  border-top-left-radius: var(--radius-md) !important;
+  border-top-right-radius: var(--radius-md) !important;
+  background-color: var(--bg-surface) !important;
+  padding: 8px 12px !important;
+}
+
+.ql-container.ql-snow {
+  border: 1px solid var(--border) !important;
+  border-bottom-left-radius: var(--radius-md) !important;
+  border-bottom-right-radius: var(--radius-md) !important;
+  background-color: var(--bg-card) !important;
+  font-family: var(--font-sans) !important;
+  font-size: 14px !important;
+  color: var(--text-primary) !important;
+}
+
+.ql-editor {
+  min-height: 180px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 12px 16px !important;
+  line-height: 1.6 !important;
+}
+
+.ql-editor.ql-blank::before {
+  color: var(--text-muted) !important;
+  font-style: normal !important;
+  left: 16px !important;
+}
+
+/* Styling formatting tooltips or picker inside Quill in dark mode */
+.ql-snow .ql-stroke {
+  stroke: var(--text-secondary) !important;
+}
+.ql-snow .ql-fill {
+  fill: var(--text-secondary) !important;
+}
+.ql-snow .ql-picker {
+  color: var(--text-secondary) !important;
+}
+
+/* Rich Text Content in Notes Card */
+.rich-text-body {
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.rich-text-body p {
+  margin-bottom: 8px;
+}
+
+.rich-text-body p:last-child {
+  margin-bottom: 0;
+}
+
+.rich-text-body ul, 
+.rich-text-body ol {
+  padding-left: 20px;
+  margin-bottom: 8px;
+}
+
+.rich-text-body li {
+  margin-bottom: 4px;
+}
+
+.rich-text-body strong {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.rich-text-body em {
+  font-style: italic;
+}
+
+.rich-text-body u {
+  text-decoration: underline;
+}
+
+.rich-text-body s {
+  text-decoration: line-through;
+}
+
+/* Custom Scrollbar for better UI experience */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
