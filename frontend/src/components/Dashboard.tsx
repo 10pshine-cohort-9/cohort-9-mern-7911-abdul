@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { api, type NoteItem, type UserResponse } from '../utils/api';
 import { useToast } from './Toast';
 import { NoteEditor } from './NoteEditor';
@@ -12,18 +12,16 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [notes, setNotes] = useState<NoteItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<NoteItem | null>(null);
-
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPinned, setFilterPinned] = useState<boolean | undefined>(undefined);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
   const { showToast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchNotes = useCallback(async () => {
     setIsLoading(true);
@@ -50,28 +48,35 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     return () => clearTimeout(delayDebounce);
   }, [searchQuery, filterPinned, fetchNotes]);
 
-  const allTags = useMemo(() => {
-    const tagsSet = new Set<string>();
+  const tagCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
     notes.forEach((note) => {
       if (note.tags) {
         note.tags.forEach((tag) => {
-          if (tag.trim()) {
-            tagsSet.add(tag.trim().toLowerCase());
+          const cleanTag = tag.trim().toLowerCase();
+          if (cleanTag) {
+            counts[cleanTag] = (counts[cleanTag] || 0) + 1;
           }
         });
       }
     });
-    return Array.from(tagsSet);
+    return counts;
   }, [notes]);
 
+  const allTags = useMemo(() => {
+    return Object.keys(tagCounts).sort((a, b) => a.localeCompare(b));
+  }, [tagCounts]);
 
   const displayedNotes = useMemo(() => {
-    if (!selectedTag) return notes;
-    return notes.filter(
-      (note) =>
-        note.tags &&
-        note.tags.some((t) => t.toLowerCase() === selectedTag.toLowerCase())
-    );
+    let filtered = notes;
+    if (selectedTag) {
+      filtered = notes.filter(
+        (note) =>
+          note.tags &&
+          note.tags.some((t) => t.toLowerCase() === selectedTag.toLowerCase())
+      );
+    }
+    return filtered;
   }, [notes, selectedTag]);
 
   const handleLogoutClick = async () => {
@@ -147,6 +152,58 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     }
   };
 
+  const handleExportClick = async () => {
+    try {
+      showToast('Preparing notes export...', 'info');
+      await api.exportNotes();
+      showToast('Notes backup downloaded successfully', 'success');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to export notes';
+      showToast(message, 'error');
+    }
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      let notesArray: any[] = [];
+      if (Array.isArray(data)) {
+        notesArray = data;
+      } else if (data && Array.isArray(data.notes)) {
+        notesArray = data.notes;
+      } else {
+        throw new Error('Format must be a JSON array of notes, or { notes: [...] }');
+      }
+
+      if (notesArray.length === 0) {
+        showToast('No notes found in the import file.', 'info');
+        e.target.value = '';
+        return;
+      }
+
+      const res = await api.importNotes(notesArray);
+      if (res.success) {
+        showToast(res.message || 'Notes imported successfully', 'success');
+        fetchNotes();
+      } else {
+        showToast(res.message || 'Failed to import notes', 'error');
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to parse import file';
+      showToast(message, 'error');
+    }
+    e.target.value = '';
+  };
+
   const openCreateEditor = () => {
     setEditingNote(null);
     setIsEditorOpen(true);
@@ -178,18 +235,46 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
   return (
     <div className="app-container">
-      {/* Header */}
+      {/* Top Header Bar */}
       <header className="dashboard-header">
         <div className="brand-section">
           <div className="brand-logo">
             <span>📝</span> Notes Hub
           </div>
-          <div className="brand-subtitle">Dashboard</div>
+          <div className="brand-subtitle">Workspace</div>
         </div>
 
-        {/* User Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        {/* Global actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleExportClick}
+            style={{ padding: '8px 16px', fontSize: '13px' }}
+          >
+            📤 Export
+          </button>
+          
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleImportClick}
+            style={{ padding: '8px 16px', fontSize: '13px' }}
+          >
+            📥 Import
+          </button>
+          
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImportFileChange}
+            accept=".json"
+            style={{ display: 'none' }}
+            aria-label="Import backup file"
+          />
+
+          <button
+            type="button"
             className="btn btn-primary"
             onClick={openCreateEditor}
             style={{ padding: '8px 16px', fontSize: '13px' }}
@@ -197,8 +282,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             ➕ New Note
           </button>
 
+          {/* User initials drop-down toggle */}
           <div style={{ position: 'relative' }}>
             <button
+              type="button"
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               className="user-profile-trigger"
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
@@ -248,6 +335,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   <div>Registered: <b>{formatDate(user.createdAt)}</b></div>
                 </div>
                 <button
+                  type="button"
                   className="btn btn-danger"
                   onClick={handleLogoutClick}
                   style={{ width: '100%', padding: '8px 16px', fontSize: '13px' }}
@@ -260,23 +348,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         </div>
       </header>
 
-      {/* Main Layout */}
-      <main style={{ padding: '24px 32px', flex: 1, backgroundColor: 'var(--bg-app)' }}>
-
-        {/* Search & Tabs Controls */}
-        <section
-          style={{
-            backgroundColor: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)',
-            padding: '20px',
-            marginBottom: '24px',
-            boxShadow: 'var(--shadow-sm)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px'
-          }}
-        >
+      {/* Main content Workspace */}
+      <main style={{ padding: '32px', flex: 1, display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        
+        {/* Search & Tabs Controls Card */}
+        <section className="controls-card">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
             {/* Search Input */}
             <div style={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: '280px', position: 'relative' }}>
@@ -291,6 +367,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               />
               {searchQuery && (
                 <button
+                  type="button"
                   onClick={() => setSearchQuery('')}
                   style={{
                     position: 'absolute',
@@ -311,6 +388,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             {/* Filter Tabs */}
             <div style={{ display: 'flex', gap: '8px', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '4px', backgroundColor: 'var(--bg-surface)' }}>
               <button
+                type="button"
                 onClick={() => setFilterPinned(undefined)}
                 className="btn"
                 style={{
@@ -326,6 +404,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 All Notes
               </button>
               <button
+                type="button"
                 onClick={() => setFilterPinned(true)}
                 className="btn"
                 style={{
@@ -351,8 +430,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               </span>
 
               <button
+                type="button"
                 onClick={() => setSelectedTag(null)}
-                className={`tag-badge`}
+                className="tag-badge"
                 style={{
                   border: 'none',
                   cursor: 'pointer',
@@ -366,23 +446,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               {allTags.map((tag) => (
                 <button
                   key={tag}
+                  type="button"
                   onClick={() => setSelectedTag(tag)}
-                  className={`tag-badge`}
+                  className="tag-badge"
                   style={{
                     border: 'none',
                     cursor: 'pointer',
                     backgroundColor: selectedTag === tag ? 'var(--accent)' : 'var(--accent-bg)',
-                    color: selectedTag === tag ? 'var(--text-on-accent)' : 'var(--accent)'
+                    color: selectedTag === tag ? 'var(--text-on-accent)' : 'var(--accent)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px'
                   }}
                 >
-                  #{tag}
+                  <span>#{tag}</span>
+                  <span style={{ fontSize: '10px', opacity: 0.8 }}>({tagCounts[tag]})</span>
                 </button>
               ))}
             </div>
           )}
         </section>
 
-        {/* Note List Header */}
+        {/* Note List workspace */}
         <section style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
@@ -393,7 +478,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             </h2>
           </div>
 
-          {/* Empty states or list grid */}
           {isLoading && notes.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Loading notes...</div>
           ) : displayedNotes.length === 0 ? (
@@ -403,6 +487,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               <p>Try clearing your search query or tag filters.</p>
               {(searchQuery || selectedTag || filterPinned !== undefined) && (
                 <button
+                  type="button"
                   className="btn btn-secondary"
                   onClick={() => {
                     setSearchQuery('');
@@ -418,18 +503,41 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           ) : (
             <div className="notes-grid">
               {displayedNotes.map((note) => (
-                <div key={note._id} className="note-card" onClick={() => openEditEditor(note)}>
+                <div key={note._id} className="note-card" style={{ position: 'relative' }}>
+                  {/* Stretched accessibility button to make entire card clickable */}
+                  <button
+                    type="button"
+                    onClick={() => openEditEditor(note)}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      background: 'none',
+                      border: 'none',
+                      width: '100%',
+                      height: '100%',
+                      cursor: 'pointer',
+                      zIndex: 1,
+                      borderRadius: 'var(--radius-md)'
+                    }}
+                    aria-label={`Open note: ${note.title}`}
+                  />
 
                   {/* Card Header with Title and Pin option */}
                   <div className="note-card-header">
                     <h4 className="note-card-title">{note.title}</h4>
                     <button
+                      type="button"
                       className="btn-text"
                       onClick={(e) => handleTogglePin(e, note)}
                       style={{
                         fontSize: '16px',
                         opacity: note.isPinned ? 1 : 0.2,
-                        transition: 'opacity var(--transition-fast)'
+                        transition: 'opacity var(--transition-fast)',
+                        position: 'relative',
+                        zIndex: 2
                       }}
                       title={note.isPinned ? 'Unpin note' : 'Pin note'}
                     >
@@ -457,16 +565,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   {/* Footer with edit/delete actions */}
                   <div className="note-card-footer">
                     <span className="note-date">Updated {formatDate(note.updatedAt)}</span>
-                    <div style={{ display: 'flex', gap: '8px' }} onClick={(e) => e.stopPropagation()}>
+                    <div style={{ display: 'flex', gap: '8px', position: 'relative', zIndex: 2 }}>
                       <button
+                        type="button"
                         className="btn-text"
-                        onClick={() => openEditEditor(note)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditEditor(note);
+                        }}
                         style={{ fontSize: '13px' }}
                       >
                         Edit
                       </button>
                       <span style={{ color: 'var(--border)' }}>|</span>
                       <button
+                        type="button"
                         className="btn-text"
                         onClick={(e) => handleDeleteNote(e, note._id)}
                         style={{ fontSize: '13px', color: 'var(--danger)' }}
@@ -494,3 +607,4 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     </div>
   );
 };
+

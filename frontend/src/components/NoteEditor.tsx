@@ -81,8 +81,28 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ isOpen, onClose, onSave,
   };
 
   return (
-    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && !isSaving && onClose()}>
-      <div className="modal-content auth-card" style={{ maxWidth: '640px', width: '90%', padding: '32px' }}>
+    <div className="modal-backdrop">
+      {/* Invisible full-screen close button for keyboard/click accessibility */}
+      <button 
+        type="button" 
+        onClick={onClose} 
+        style={{ 
+          position: 'absolute', 
+          top: 0, 
+          left: 0, 
+          right: 0, 
+          bottom: 0, 
+          background: 'none', 
+          border: 'none', 
+          width: '100%', 
+          height: '100%', 
+          cursor: 'default',
+          zIndex: -1 
+        }} 
+        aria-label="Close modal"
+        disabled={isSaving}
+      />
+      <div className="modal-content auth-card" style={{ maxWidth: '640px', width: '90%', padding: '32px', zIndex: 1 }}>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>

@@ -227,4 +227,76 @@ export class NoteController {
       next(error);
     }
   }
+
+  static async exportNotes(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401);
+        throw new Error('Unauthorized');
+      }
+
+      const notes = await Note.find({ userId: req.user._id }).sort({ isPinned: -1, updatedAt: -1 });
+
+      logger.info({ userId: req.user._id, count: notes.length }, 'Exported notes successfully');
+
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', 'attachment; filename=notes-export.json');
+      res.status(200).json({
+        success: true,
+        notes,
+      });
+    } catch (error) {
+      logger.error({ err: error, userId: req.user?._id }, 'Error occurred during notes export');
+      next(error);
+    }
+  }
+
+  static async importNotes(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401);
+        throw new Error('Unauthorized');
+      }
+
+      const { notes } = req.body;
+
+      if (!Array.isArray(notes)) {
+        res.status(400);
+        throw new Error('Invalid notes format, expected an array');
+      }
+
+      const importedNotes = [];
+      for (const item of notes) {
+        if (!item.title || !item.content) {
+          continue;
+        }
+
+        importedNotes.push({
+          title: item.title,
+          content: item.content,
+          tags: Array.isArray(item.tags) ? item.tags : [],
+          isPinned: !!item.isPinned,
+          userId: req.user._id,
+        });
+      }
+
+      if (importedNotes.length === 0) {
+        res.status(400);
+        throw new Error('No valid notes found to import');
+      }
+
+      const result = await Note.insertMany(importedNotes);
+
+      logger.info({ userId: req.user._id, count: result.length }, 'Imported notes successfully');
+
+      res.status(201).json({
+        success: true,
+        message: `${result.length} notes imported successfully`,
+        notes: result,
+      });
+    } catch (error) {
+      logger.error({ err: error, userId: req.user?._id }, 'Error occurred during notes import');
+      next(error);
+    }
+  }
 }

@@ -165,6 +165,37 @@ class ApiClient {
       method: 'DELETE',
     }, true);
   }
+
+  async exportNotes(): Promise<void> {
+    const token = this.getToken();
+    const response = await fetch(`${API_BASE_URL}/notes/export`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to export notes');
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `notes-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  }
+
+  async importNotes(notes: Array<{ title: string; content: string; tags?: string[]; isPinned?: boolean }>): Promise<{ success: boolean; message: string }> {
+    return this.request<{ success: boolean; message: string }>(`${API_BASE_URL}/notes/import`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    }, true);
+  }
 }
 
 export const api = new ApiClient();

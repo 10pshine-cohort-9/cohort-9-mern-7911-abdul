@@ -20,6 +20,7 @@ describe('Note API Endpoints', () => {
   let originalFindOne: typeof Note.findOne;
   let originalFindById: typeof User.findById;
   let originalVerify: typeof jwt.verify;
+  let originalInsertMany: typeof Note.insertMany;
 
   before(() => {
     originalCreate = Note.create;
@@ -27,6 +28,7 @@ describe('Note API Endpoints', () => {
     originalFindOne = Note.findOne;
     originalFindById = User.findById;
     originalVerify = jwt.verify;
+    originalInsertMany = Note.insertMany;
   });
 
   afterEach(() => {
@@ -35,6 +37,7 @@ describe('Note API Endpoints', () => {
     Note.findOne = originalFindOne;
     User.findById = originalFindById;
     jwt.verify = originalVerify;
+    Note.insertMany = originalInsertMany;
   });
 
   const stubAuthSuccess = () => {
@@ -259,6 +262,69 @@ describe('Note API Endpoints', () => {
 
       expect(response.status).to.equal(400);
       expect(response.body.message).to.equal('Invalid note ID format');
+    });
+  });
+
+  describe('GET /api/notes/export', () => {
+    it('should export all user notes successfully', async () => {
+      stubAuthSuccess();
+
+      const mockNotes = [
+        { _id: '60c72b2f9b1d8b2bad000111', title: 'Note A', content: 'Content A', isPinned: true, userId: '60c72b2f9b1d8b2bad000001' },
+      ];
+
+      Note.find = (() => ({
+        sort: () => Promise.resolve(mockNotes),
+      })) as unknown as typeof Note.find;
+
+      const response = await request(app)
+        .get('/api/notes/export')
+        .set('Authorization', token);
+
+      expect(response.status).to.equal(200);
+      expect(response.body.success).to.be.true;
+      expect(response.body.notes).to.be.an('array');
+      expect(response.body.notes[0].title).to.equal('Note A');
+    });
+  });
+
+  describe('POST /api/notes/import', () => {
+    it('should import notes successfully', async () => {
+      stubAuthSuccess();
+
+      const notesToImport = [
+        { title: 'Imported Note', content: 'Some imported content', tags: ['imported'] }
+      ];
+
+      Note.insertMany = (async (data: any) => {
+        return data.map((item: any, idx: number) => ({
+          ...item,
+          _id: `60c72b2f9b1d8b2bad00099${idx}`,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }));
+      }) as unknown as typeof Note.insertMany;
+
+      const response = await request(app)
+        .post('/api/notes/import')
+        .set('Authorization', token)
+        .send({ notes: notesToImport });
+
+      expect(response.status).to.equal(201);
+      expect(response.body.success).to.be.true;
+      expect(response.body.message).to.contain('notes imported successfully');
+    });
+
+    it('should return 400 if notes array is missing or empty', async () => {
+      stubAuthSuccess();
+
+      const response = await request(app)
+        .post('/api/notes/import')
+        .set('Authorization', token)
+        .send({});
+
+      expect(response.status).to.equal(400);
+      expect(response.body.message).to.equal('Invalid notes format, expected an array');
     });
   });
 });

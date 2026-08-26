@@ -8,6 +8,8 @@ router.use(protect);
 
 router.post('/', NoteController.createNote);
 router.get('/', NoteController.getNotes);
+router.get('/export', NoteController.exportNotes);
+router.post('/import', NoteController.importNotes);
 router.get('/:id', NoteController.getNoteById);
 router.put('/:id', NoteController.updateNote);
 router.delete('/:id', NoteController.deleteNote);
