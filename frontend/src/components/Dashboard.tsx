@@ -73,7 +73,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       filtered = notes.filter(
         (note) =>
           note.tags &&
-          note.tags.some((t) => t.toLowerCase() === selectedTag.toLowerCase())
+          note.tags.some((t) => t.trim().toLowerCase() === selectedTag.toLowerCase())
       );
     }
     return filtered;
@@ -173,24 +173,43 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
     try {
       const text = await file.text();
-      const data = JSON.parse(text);
+      const data: unknown = JSON.parse(text);
 
-      let notesArray: any[] = [];
+      let rawNotes: unknown[] = [];
       if (Array.isArray(data)) {
-        notesArray = data;
-      } else if (data && Array.isArray(data.notes)) {
-        notesArray = data.notes;
+        rawNotes = data;
+      } else if (data && typeof data === 'object' && Array.isArray((data as any).notes)) {
+        rawNotes = (data as any).notes;
       } else {
         throw new Error('Format must be a JSON array of notes, or { notes: [...] }');
       }
 
-      if (notesArray.length === 0) {
+      if (rawNotes.length === 0) {
         showToast('No notes found in the import file.', 'info');
         e.target.value = '';
         return;
       }
 
-      const res = await api.importNotes(notesArray);
+      const validatedNotes = rawNotes.filter((item): item is { title: string; content: string; tags?: string[]; isPinned?: boolean } => {
+        return (
+          item !== null &&
+          typeof item === 'object' &&
+          'title' in item &&
+          typeof (item as any).title === 'string' &&
+          (item as any).title.trim().length > 0 &&
+          'content' in item &&
+          typeof (item as any).content === 'string' &&
+          (item as any).content.trim().length > 0
+        );
+      });
+
+      if (validatedNotes.length === 0) {
+        showToast('No valid notes found in the import file.', 'error');
+        e.target.value = '';
+        return;
+      }
+
+      const res = await api.importNotes(validatedNotes);
       if (res.success) {
         showToast(res.message || 'Notes imported successfully', 'success');
         fetchNotes();

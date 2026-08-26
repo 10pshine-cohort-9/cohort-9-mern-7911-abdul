@@ -167,27 +167,50 @@ class ApiClient {
   }
 
   async exportNotes(): Promise<void> {
-    const token = this.getToken();
-    const response = await fetch(`${API_BASE_URL}/notes/export`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`
+    let response: Response;
+    try {
+      const headers = this.getHeaders(true);
+      response = await fetch(`${API_BASE_URL}/notes/export`, {
+        method: 'GET',
+        headers
+      });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(`Network failure: ${error.message}`);
       }
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to export notes');
+      throw new Error('A network connection error occurred.');
     }
 
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `notes-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
+    if (!response.ok) {
+      let data: unknown;
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(`HTTP error ${response.status}`);
+      }
+
+      if (data && typeof data === 'object' && 'message' in data && typeof (data as Record<string, unknown>).message === 'string') {
+        throw new Error((data as Record<string, string>).message);
+      }
+      throw new Error(`HTTP error ${response.status}`);
+    }
+
+    try {
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `notes-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(`Export download failure: ${error.message}`);
+      }
+      throw new Error('An error occurred during file export.');
+    }
   }
 
   async importNotes(notes: Array<{ title: string; content: string; tags?: string[]; isPinned?: boolean }>): Promise<{ success: boolean; message: string }> {

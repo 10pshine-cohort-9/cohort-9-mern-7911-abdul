@@ -267,14 +267,18 @@ export class NoteController {
 
       const importedNotes = [];
       for (const item of notes) {
+        if (!item || typeof item !== 'object') {
+          continue;
+        }
+
         if (!item.title || !item.content) {
           continue;
         }
 
         importedNotes.push({
-          title: item.title,
-          content: item.content,
-          tags: Array.isArray(item.tags) ? item.tags : [],
+          title: String(item.title),
+          content: String(item.content),
+          tags: Array.isArray(item.tags) ? item.tags.map(String) : [],
           isPinned: !!item.isPinned,
           userId: req.user._id,
         });

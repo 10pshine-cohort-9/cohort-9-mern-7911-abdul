@@ -97,12 +97,12 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ isOpen, onClose, onSave,
           width: '100%', 
           height: '100%', 
           cursor: 'default',
-          zIndex: -1 
+          zIndex: 0 
         }} 
         aria-label="Close modal"
         disabled={isSaving}
       />
-      <div className="modal-content auth-card" style={{ maxWidth: '640px', width: '90%', padding: '32px', zIndex: 1 }}>
+      <div className="modal-content auth-card" style={{ position: 'relative', maxWidth: '640px', width: '90%', padding: '32px', zIndex: 1 }}>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>

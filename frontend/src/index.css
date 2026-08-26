@@ -13,7 +13,7 @@
   --text-primary: #f9fafb;  /* Soft white */
   --text-secondary: #e5e7eb;/* Light grey */
   --text-muted: #9ca3af;    /* Mid grey */
-  --text-on-accent: #ffffff;
+  --text-on-accent: #0b0f19;
 
   --accent: #22c55e;        /* Bright Neon Green */
   --accent-light: #4ade80;  /* Light lime green */
@@ -207,13 +207,13 @@ a:hover {
 .btn-primary {
   background-color: var(--accent);
   color: var(--text-on-accent);
-  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25);
+  box-shadow: 0 4px 14px rgba(34, 197, 94, 0.25);
 }
 
 .btn-primary:hover {
   background-color: var(--accent-hover);
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.35);
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.35);
 }
 
 .btn-primary:active {

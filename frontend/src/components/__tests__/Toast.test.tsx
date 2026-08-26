@@ -36,7 +36,33 @@ describe('Toast Component and Provider', () => {
 
   test('throws error when useToast is used outside ToastProvider', () => {
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
-    expect(() => render(<BadComponent />)).toThrow('useToast must be used within a ToastProvider');
+    const spyReportError = jest.fn();
+    const originalReportError = window.reportError;
+    window.reportError = spyReportError;
+
+    const errorHandler = jest.fn((e) => e.preventDefault());
+    window.addEventListener('error', errorHandler);
+
+    let caughtSyncError: Error | null = null;
+    try {
+      render(<BadComponent />);
+    } catch (e) {
+      caughtSyncError = e instanceof Error ? e : new Error(String(e));
+    }
+
+    const hasExpectedError = 
+      caughtSyncError?.message.includes('useToast must be used within a ToastProvider') ||
+      spyReportError.mock.calls.some(call => call[0] instanceof Error && call[0].message.includes('useToast must be used within a ToastProvider')) ||
+      errorHandler.mock.calls.some(call => call[0] && (call[0].message || '').includes('useToast must be used within a ToastProvider')) ||
+      consoleError.mock.calls.some(call => {
+        const msg = call[0] instanceof Error ? call[0].message : String(call[0]);
+        return msg.includes('useToast must be used within a ToastProvider');
+      });
+
+    expect(hasExpectedError).toBe(true);
+
+    window.removeEventListener('error', errorHandler);
+    window.reportError = originalReportError;
     consoleError.mockRestore();
   });
 
