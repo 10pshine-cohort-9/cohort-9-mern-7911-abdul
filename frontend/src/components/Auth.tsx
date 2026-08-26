@@ -30,7 +30,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
       showToast('Email is required', 'error');
       return false;
     }
-    const emailRegex = /^\S+@\S+\.\S+$/;
+    const emailRegex = /^[^@\s]{1,256}@[^@\s]{1,256}\.[^@\s]{1,64}$/;
     if (!emailRegex.test(email)) {
       showToast('Please enter a valid email address', 'error');
       return false;
@@ -46,7 +46,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
     return true;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
 
