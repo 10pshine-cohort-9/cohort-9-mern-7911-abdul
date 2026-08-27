@@ -120,4 +120,31 @@ describe('NoteEditor Component', () => {
 
     expect(mockOnClose).toHaveBeenCalled();
   });
+
+  test('calls onClose when Escape key is pressed', () => {
+    render(
+      <NoteEditor isOpen={true} onClose={mockOnClose} onSave={mockOnSave} note={null} />
+    );
+
+    fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
+    expect(mockOnClose).toHaveBeenCalled();
+  });
+
+  test('allows adding tag by pressing Enter or comma', () => {
+    render(
+      <NoteEditor isOpen={true} onClose={mockOnClose} onSave={mockOnSave} note={null} />
+    );
+
+    const tagInput = screen.getByLabelText(/Tags/i);
+
+    // Enter key
+    fireEvent.change(tagInput, { target: { value: 'tagone' } });
+    fireEvent.keyDown(tagInput, { key: 'Enter', code: 'Enter' });
+    expect(screen.getByText(/#tagone/i)).toBeInTheDocument();
+
+    // Comma key
+    fireEvent.change(tagInput, { target: { value: 'tagtwo' } });
+    fireEvent.keyDown(tagInput, { key: ',', code: 'Comma' });
+    expect(screen.getByText(/#tagtwo/i)).toBeInTheDocument();
+  });
 });

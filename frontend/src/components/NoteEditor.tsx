@@ -63,11 +63,12 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ isOpen, onClose, onSave,
     setTags(tags.filter((t) => t !== tagToRemove));
   };
 
-  const handleFormSubmit = async (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
-    const strippedContent = content.replace(/<[^>]*>/g, '').trim();
+    const doc = new DOMParser().parseFromString(content, 'text/html');
+    const strippedContent = (doc.body.textContent || '').trim();
     if (!strippedContent) return;
 
     setIsSaving(true);
@@ -81,8 +82,28 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ isOpen, onClose, onSave,
   };
 
   return (
-    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && !isSaving && onClose()}>
-      <div className="modal-content auth-card" style={{ maxWidth: '640px', width: '90%', padding: '32px' }}>
+    <div className="modal-backdrop">
+      {/* Invisible full-screen close button for keyboard/click accessibility */}
+      <button 
+        type="button" 
+        onClick={onClose} 
+        style={{ 
+          position: 'absolute', 
+          top: 0, 
+          left: 0, 
+          right: 0, 
+          bottom: 0, 
+          background: 'none', 
+          border: 'none', 
+          width: '100%', 
+          height: '100%', 
+          cursor: 'default',
+          zIndex: 0 
+        }} 
+        aria-label="Close modal"
+        disabled={isSaving}
+      />
+      <div className="modal-content auth-card" style={{ position: 'relative', maxWidth: '640px', width: '90%', padding: '32px', zIndex: 1 }}>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
@@ -129,9 +150,9 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ isOpen, onClose, onSave,
 
           {/* Quill Rich Text Editor */}
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">
+            <span className="form-label" style={{ display: 'block' }}>
               Content
-            </label>
+            </span>
             <div className="rich-editor-wrapper">
               <QuillEditor
                 value={content}
@@ -221,7 +242,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ isOpen, onClose, onSave,
             <button
               type="submit"
               className="btn btn-primary"
-              disabled={isSaving || !title.trim() || !content.replace(/<[^>]*>/g, '').trim()}
+              disabled={isSaving || !title.trim() || !(new DOMParser().parseFromString(content, 'text/html').body.textContent || '').trim()}
             >
               {isSaving ? 'Saving...' : 'Save Note'}
             </button>

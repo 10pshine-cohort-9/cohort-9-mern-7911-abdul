@@ -11,6 +11,8 @@ jest.mock('../../utils/api', () => ({
     updateNote: jest.fn(),
     deleteNote: jest.fn(),
     logout: jest.fn(),
+    exportNotes: jest.fn(),
+    importNotes: jest.fn(),
   },
 }));
 
@@ -34,8 +36,8 @@ jest.mock('../NoteEditor', () => ({
     if (!isOpen) return null;
     return (
       <div data-testid="mock-note-editor">
-        <button onClick={onClose}>Cancel</button>
-        <button onClick={() => onSave('New Note Title', '<p>New Note Content</p>', ['work'], false)}>Save Note</button>
+        <button type="button" onClick={onClose}>Cancel</button>
+        <button type="button" onClick={() => onSave('New Note Title', '<p>New Note Content</p>', ['work'], false)}>Save Note</button>
       </div>
     );
   },
@@ -189,5 +191,96 @@ describe('Dashboard Component', () => {
     } catch (error) {
       throw new Error(`Dashboard delete post-click check waitFor assertion failed: ${error instanceof Error ? error.message : error}`);
     }
+  });
+
+  test('calls api.exportNotes when clicking Export button', async () => {
+    (api.getNotes as jest.Mock).mockResolvedValue({ success: true, notes: [] });
+    (api.exportNotes as jest.Mock).mockResolvedValueOnce(undefined);
+
+    render(
+      <ToastProvider>
+        <Dashboard user={mockUser} onLogout={mockOnLogout} />
+      </ToastProvider>
+    );
+
+    const exportBtn = screen.getByRole('button', { name: /Export/i });
+    fireEvent.click(exportBtn);
+
+    expect(api.exportNotes).toHaveBeenCalled();
+  });
+
+  test('calls api.importNotes when importing a valid JSON file', async () => {
+    (api.getNotes as jest.Mock).mockResolvedValue({ success: true, notes: [] });
+    (api.importNotes as jest.Mock).mockResolvedValueOnce({ success: true, message: 'Imported successfully' });
+
+    const originalText = File.prototype.text;
+    File.prototype.text = jest.fn().mockResolvedValueOnce('[{"title":"Imported","content":"Body"}]');
+
+    render(
+      <ToastProvider>
+        <Dashboard user={mockUser} onLogout={mockOnLogout} />
+      </ToastProvider>
+    );
+
+    const file = new File(['[{"title":"Imported","content":"Body"}]'], 'notes.json', { type: 'application/json' });
+    const fileInput = document.querySelector('input[type="file"]');
+
+    expect(fileInput).toBeInTheDocument();
+
+    fireEvent.change(fileInput!, { target: { files: [file] } });
+
+    try {
+      await waitFor(() => {
+        expect(api.importNotes).toHaveBeenCalled();
+        expect(mockShowToast).toHaveBeenCalledWith('Imported successfully', 'success');
+      });
+    } finally {
+      File.prototype.text = originalText;
+    }
+  });
+
+  test('filters notes by tag selection', async () => {
+    (api.getNotes as jest.Mock).mockResolvedValue({
+      success: true,
+      notes: mockNotes,
+    });
+
+    render(
+      <ToastProvider>
+        <Dashboard user={mockUser} onLogout={mockOnLogout} />
+      </ToastProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('First Note')).toBeInTheDocument();
+    });
+
+    const tagFilterBtn = screen.getByRole('button', { name: /#\s*work/i });
+    fireEvent.click(tagFilterBtn);
+
+    expect(screen.getByText('First Note')).toBeInTheDocument();
+    expect(screen.queryByText('Pinned Note')).not.toBeInTheDocument();
+  });
+
+  test('calls logout api and callback on logout click', async () => {
+    (api.getNotes as jest.Mock).mockResolvedValue({ success: true, notes: [] });
+    (api.logout as jest.Mock).mockResolvedValueOnce(undefined);
+
+    render(
+      <ToastProvider>
+        <Dashboard user={mockUser} onLogout={mockOnLogout} />
+      </ToastProvider>
+    );
+
+    const profileTrigger = screen.getByLabelText(/Toggle user details dropdown/i);
+    fireEvent.click(profileTrigger);
+
+    const logoutBtn = screen.getByRole('button', { name: /Log Out/i });
+    fireEvent.click(logoutBtn);
+
+    await waitFor(() => {
+      expect(api.logout).toHaveBeenCalled();
+      expect(mockOnLogout).toHaveBeenCalled();
+    });
   });
 });

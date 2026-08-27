@@ -39,7 +39,7 @@ export class AuthController {
         throw new Error('Please provide all required fields: name, email, password');
       }
 
-      const emailRegex = /^\S+@\S+\.\S+$/;
+      const emailRegex = /^[^@\s]{1,256}@[^@\s]{1,256}\.[^@\s]{1,64}$/;
       if (!emailRegex.test(email)) {
         res.status(400);
         throw new Error('Please enter a valid email address');

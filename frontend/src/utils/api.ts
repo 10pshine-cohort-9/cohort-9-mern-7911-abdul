@@ -165,6 +165,60 @@ class ApiClient {
       method: 'DELETE',
     }, true);
   }
+
+  async exportNotes(): Promise<void> {
+    let response: Response;
+    try {
+      const headers = this.getHeaders(true);
+      response = await fetch(`${API_BASE_URL}/notes/export`, {
+        method: 'GET',
+        headers
+      });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(`Network failure: ${error.message}`);
+      }
+      throw new Error('A network connection error occurred.');
+    }
+
+    if (!response.ok) {
+      let data: unknown;
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(`HTTP error ${response.status}`);
+      }
+
+      if (data && typeof data === 'object' && 'message' in data && typeof (data as Record<string, unknown>).message === 'string') {
+        throw new Error((data as Record<string, string>).message);
+      }
+      throw new Error(`HTTP error ${response.status}`);
+    }
+
+    try {
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `notes-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(`Export download failure: ${error.message}`);
+      }
+      throw new Error('An error occurred during file export.');
+    }
+  }
+
+  async importNotes(notes: Array<{ title: string; content: string; tags?: string[]; isPinned?: boolean }>): Promise<{ success: boolean; message: string }> {
+    return this.request<{ success: boolean; message: string }>(`${API_BASE_URL}/notes/import`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    }, true);
+  }
 }
 
 export const api = new ApiClient();

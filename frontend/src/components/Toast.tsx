@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useCallback } from 'react';
+import React, { createContext, useState, useContext, useCallback, useMemo, useRef } from 'react';
 
 export type ToastType = 'success' | 'error' | 'info';
 
@@ -16,13 +16,15 @@ const ToastContext = createContext<ToastContextProps | undefined>(undefined);
 
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const toastIdCounter = useRef(0);
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
   const showToast = useCallback((message: string, type: ToastType = 'info') => {
-    const id = Math.random().toString(36).substring(2, 9);
+    toastIdCounter.current += 1;
+    const id = `toast-${toastIdCounter.current}`;
     setToasts((prev) => [...prev, { id, message, type }]);
 
     setTimeout(() => {
@@ -30,14 +32,21 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, 3500);
   }, [removeToast]);
 
+  const contextValue = useMemo(() => ({ showToast }), [showToast]);
+
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext.Provider value={contextValue}>
       {children}
       <div className="toast-container" role="status" aria-live="polite">
         {toasts.map((toast) => (
           <div key={toast.id} className={`toast toast-${toast.type}`}>
             <span className="toast-message">{toast.message}</span>
-            <button className="toast-close" onClick={() => removeToast(toast.id)} aria-label="Dismiss notification">
+            <button 
+              type="button"
+              className="toast-close" 
+              onClick={() => removeToast(toast.id)} 
+              aria-label="Dismiss notification"
+            >
               ✕
             </button>
           </div>
